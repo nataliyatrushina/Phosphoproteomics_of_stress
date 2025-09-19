@@ -1,6 +1,6 @@
 # title: "Phosphoproteomics script for PEAKS® Online output analysis"
 # author: "Nataliya Trushina"
-# date: "Date Created: 2022-03-22"
+# date: "2025-03-22"
 
 # ---------------------------------------------------------------------------- #
 # --- Script description ----------------------------------------------------- #
@@ -46,15 +46,20 @@ library(ggrepel)
 library(plotly)
 library(RColorBrewer)
 library(pheatmap)
-library(gghighlight)   # Enhances ggplot2 plots by highlighting
-library(ggvenn)        # Venn diagrams with ggplot2
+library(gghighlight)    # Enhances ggplot2 plots by highlighting
+library(ggvenn)         # Venn diagrams with ggplot2
 
 # Text analysis
-library(qdap)  # remotes::install_version("qdap", version = "2.4.3")
+library(qdap)           # remotes::install_version("qdap", version = "2.4.3")
 
 # Bioinformatics
 # BiocManager::install("Biostrings")  # see BiocManager installation above
 library(Biostrings)
+
+# ---------------------------------------------------------------------------- #
+
+# Source external phosphoproteomics functions
+source("phospho_functions.R")
 
 # ---------------------------------------------------------------------------- #
 # --- Settings and thresholds for modification ------------------------------- #
@@ -63,31 +68,22 @@ library(Biostrings)
 #Cut-offs for statistics and biologically relevant difference
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
-# Arsenite
-# dir_proteomics <- "Arsenite"  # Arsenite experiment was not done so set the normalization directory to H2O2 - not used later
-# condition <- "Arsenite_phosph"
-# norm_opt <- "notNORM" # "norm" for normalization or something else for not
-# col_control <- "#4f4f4f"
-# control_name <- "control"
-# col_exp <- "#ED6B4D"
+# Load experiment parameters from YAML
+if (!requireNamespace("yaml", quietly = TRUE)) install.packages("yaml")
+library(yaml)
 
-# H2O2
-# dir_proteomics <- "H2O2"
-# condition <- "H2O2_phosph"
-# norm_opt <- "notNORM"
+# Choose experiment: "HS", "H2O2", "Arsenite", "DEX"
+experiment_choice <- "Arsenite" # Change this to select experiment
+config <- yaml.load_file("experiment_config.yaml")
+params <- config$experiments[[experiment_choice]]
+
+dir_proteomics <- params$dir_proteomics
+condition <- params$condition
+norm_opt <- params$norm_opt
+col_control <- params$col_control
+control_name <- params$control_name
+col_exp <- params$col_exp
 # dir.create(condition)
-# col_control <- "#4f4f4f"
-# control_name <- "control"
-# col_exp <- "#445e93"
-
-# PHOX15_phosph
-dir_proteomics <- "HS"
-condition <- "HS_phosph"
-norm_opt <- "not_norm"
-dir.create(condition)
-col_control <- "#4f4f4f"
-control_name <- "control"
-col_exp <- "#DB3A34"  # #FFC857 DEX  # #00A6ED H2O2  # #6DA34D Aresenite?
 
 pValue_cutoff <- 0.05
 Sign_cutoff <- -10*log10(pValue_cutoff)
@@ -100,59 +96,6 @@ cols <- c("Decreased" = col_control, "NS" = "#C2C2C2", "Increased" = col_exp)
 output_dir <- paste(condition, "/output_", formatC(pValue_cutoff, digits = 2, format = "f"),"sign_",as.character(FC_cutoff),"fold", sep = "")
 dir.create(output_dir)
 plot_title <- paste("pValue < ", as.character(pValue_cutoff),"\nFold Change > ", as.character(FC_cutoff),"\nDifference: ", condition, "/", control_name, sep = "")
-# ---------------------------------------------------------------------------- #
-# --- Functions -------------------------------------------------------------- #
-# ---------------------------------------------------------------------------- #
-
-#Important: sometimes operations work on matrices only then:
-#dat_proc_out$Uniprot_accession_matrix <- as.matrix(dat_proc_out[,"Uniprot_accession"]) 
-get_protein_sequence <- function(ac) {
-  if(ac != ""){
-    #ac = "A0A0G2JSW2"
-    print(ac)
-    requestURL <- paste("https://www.ebi.ac.uk/proteins/api/proteins/", as.character(ac), sep = "")
-    r <- GET(requestURL, accept("application/xml"))
-    
-    try.test<-try(stop_for_status(r), silent = TRUE) 
-    if (class(try.test) == "try-error"){
-      return("")
-    }
-    else {
-      xml <- read_xml(content(r,as = "raw"))
-      return((as_list(xml))$entry$sequence[[1]])
-    }
-  } else {
-    return("")
-  }
-} #get_protein_sequence("O70593")
-
-#counter for skipping (+79.97) marks in phosphopeptide
-counter <- list(-1,-9,-17,-25,-33) #because maximum allowed PTMs in PEAKS is 5
-
-get_list_phosphomarks <- function(phosphopept) {
-  return(toString(unlist(lapply(seq_along(as.list(unlist(gregexpr('\\(', phosphopept)))),function(i)
-    unlist(as.list(unlist(gregexpr('\\(', phosphopept)))[i])+unlist(counter[i])))))
-}
-
-get_list_phosphosites <- function(phosphopept, start) {
-  if (start != "") {
-    return(toString(unlist(lapply(seq_along(as.list(unlist(gregexpr('\\(', phosphopept)))),function(i)
-      unlist(as.list(unlist(gregexpr('\\(', phosphopept)))[i])+unlist(counter[i]))) + start - 1))
-  }
-  else {
-    return("")
-  }
-}
-
-get_list_residues <- function(pept,marks) {
-  return(letter(pept, c(as.numeric(unlist(as.list(strsplit(marks, ", ")[[1]]))))))
-}
-
-paste_phosphosites <- function(res,site) {
-  result <- unlist(lapply(seq_along(unlist(as.list(unlist(strsplit(res,", "))))),function(i)
-    paste(unlist(as.list(unlist(strsplit(res,", ")))[i]),unlist(as.list(unlist(strsplit(site,", ")))[i]), sep = "")))
-  return(unlist(result))
-}
 
 # ---------------------------------------------------------------------------- #
 # --- Dataset processing ----------------------------------------------------- #
