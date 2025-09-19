@@ -10,7 +10,7 @@
 # - Generate a detailed annotated table for these phosphopeptides.
 # - Compare the presence of phosphopeptides in experimental and control samples.
 # - Produce a volcano plot based on predefined thresholds.
-# Required Inputs:
+# Required inputs:
 # - Exported PEAKS files: 'peptides' and 'proteins' tables, and "peptide-protein" for the start position.
 
 # ---------------------------------------------------------------------------- #
@@ -53,7 +53,7 @@ library(ggvenn)         # Venn diagrams with ggplot2
 library(qdap)           # remotes::install_version("qdap", version = "2.4.3")
 
 # Bioinformatics
-# BiocManager::install("Biostrings")  # see BiocManager installation above
+# BiocManager::install("Biostrings")  # See BiocManager installation above
 library(Biostrings)
 
 # ---------------------------------------------------------------------------- #
@@ -65,7 +65,7 @@ source("phospho_functions.R")
 # --- Settings and thresholds for modification ------------------------------- #
 # ---------------------------------------------------------------------------- #
 
-#Cut-offs for statistics and biologically relevant difference
+# Cut-offs for statistics and biologically relevant difference
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 # Load experiment parameters from YAML
@@ -144,10 +144,8 @@ dat <- dat_orig %>%
 prot <- read.csv(paste(condition, "/lfq.proteins.csv", sep = ""), dec = ".") %>%
   select(Accession, Description)
 
-# Sometimes gene names contain "_" this could require deleting everything after their first occurrence or
-# taking a delimiter for phosphosites names that never occurs in gene names
-# or what is done here: they are replaced with "-" because for their identification the description has to be read anyway
-#dat_proc$Gene[grepl("_", dat_proc$Gene)] # check different IDs
+# Sometimes gene names contain "_" this could require deleting everything after their first occurrence or taking a delimiter for phosphosites names that never occurs in gene names or what is done here: they are replaced with "-" because for their identification the description has to be read anyway
+# dat_proc$Gene[grepl("_", dat_proc$Gene)] # check different IDs
 
 # Merge the tables to get full descriptions and gene names
 dat_proc <- dat %>%
@@ -241,12 +239,12 @@ if (norm_opt == "norm") {
   print("NORMALIZING")
   x_fin <- dat_proc_out_norm
   unique_control <- filter(x_fin, (control_1 != 0 & control_2 != 0 & control_3 != 0) & (exp_1 == 0 & exp_2 == 0 & exp_3 == 0))
-  #unique_control$norm_group_control <- unique_control$prot_exp*unique_control$group_control/unique_control$prot_control
+  # unique_control$norm_group_control <- unique_control$prot_exp*unique_control$group_control/unique_control$prot_control
   if (nrow(unique_control) > 0) unique_control$Detected <- "Unique in control"
   unique_decreased_genes <- as.data.frame(na.omit(unique(unique_control$Gene)))
   # write.table(unique_decreased_genes, paste(output_dir, "/", norm_opt, "_unique_in_control_genes.txt", sep = ""), sep = ';', row.names = FALSE, col.names = FALSE, quote = FALSE)
   unique_exp <- filter(x_fin, (control_1 == 0 & control_2 == 0 & control_3 == 0) & (exp_1 != 0 & exp_2 != 0 & exp_3 != 0))
-  #unique_exp$norm_group_exp <- unique_exp$prot_control*unique_exp$group_exp/unique_exp$prot_exp
+  # unique_exp$norm_group_exp <- unique_exp$prot_control*unique_exp$group_exp/unique_exp$prot_exp
   if (nrow(unique_exp) > 0) unique_exp$Detected <- "Unique in experiment"
   unique_increased_genes <- as.data.frame(na.omit(unique(unique_exp$Gene)))
   # write.table(unique_increased_genes, paste(output_dir, "/", norm_opt, "_unique_in_exp_genes.txt", sep = ""), sep = ';', row.names = FALSE, col.names = FALSE, quote = FALSE)
@@ -697,7 +695,7 @@ p_count_MT_groups <- ggplot(df_all_MT, aes(x = reorder(Gene, rowname))) +
         axis.ticks = element_line(colour = "black"),
         axis.text.x = element_text(color = "black"),
         axis.text.y = element_text(color = "black"),
-        #legend.text = element_text(size = 10),
+        # legend.text = element_text(size = 10),
         panel.grid.minor = element_blank(),
         panel.grid.major.y = element_blank(),
         legend.position = "none",
@@ -731,7 +729,7 @@ plot_phosphosites <- ggplot(df_MAP1b, aes(x = Phosphoposition, y = Plotting)) +
   xlab("Residue number") +
   scale_x_continuous(limits = c(0,2774), breaks = seq(0, 2800, 200)) +
   geom_text_repel(data = df_MAP1b,
-                  #direction = "x", nudge_x = -2, force = 20,
+                  # direction = "x", nudge_x = -2, force = 20,
                   aes(label = .labs_sele_MAP1b),
                   color = col_exp,
                   size = 2, max.overlaps = Inf) +
@@ -740,10 +738,10 @@ plot_phosphosites <- ggplot(df_MAP1b, aes(x = Phosphoposition, y = Plotting)) +
                  position = position_jitter(height = 0L, seed = 1L)) +
   theme_classic() +
   theme(
-    plot.title = element_blank(), # element_text(color = "black", size = 12, hjust = 0.5),
-    axis.ticks = element_blank(), #element_line(colour = "black"),
+    plot.title = element_blank(),  # element_text(color = "black", size = 12, hjust = 0.5),
+    axis.ticks = element_blank(),  # element_line(colour = "black"),
     axis.text.x = element_text(color = "black", size = 8),
-    axis.text.y = element_blank(), #element_text(color = "black", size = 8),
+    axis.text.y = element_blank(),  # element_text(color = "black", size = 8),
     legend.position = "none",
     legend.title = element_blank(),
     axis.title.x = element_blank(),
