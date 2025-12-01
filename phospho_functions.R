@@ -33,10 +33,10 @@ get_protein_sequence <- function(ac) {
   } else {
     return("")
   }
-} #get_protein_sequence("O70593")
+} # get_protein_sequence("O70593")
 
-#counter for skipping (+79.97) marks in phosphopeptide
-counter <- list(-1,-9,-17,-25,-33) #because maximum allowed PTMs in PEAKS is 5
+# Counter for skipping (+79.97) marks in phosphopeptide
+counter <- list(-1,-9,-17,-25,-33)  # because maximum allowed PTMs in PEAKS is 5
 
 get_list_phosphomarks <- function(phosphopept) {
   return(toString(unlist(lapply(seq_along(as.list(unlist(gregexpr('\\(', phosphopept)))),function(i)
