@@ -73,7 +73,12 @@ if (!requireNamespace("yaml", quietly = TRUE)) install.packages("yaml")
 library(yaml)
 
 # Choose experiment: "HS", "H2O2", "Arsenite", "DEX"
-experiment_choice <- "Arsenite" # Change this to select experiment
+if (RUN_ALL) {
+  experiment_choice = exp_name
+  } else {
+  experiment_choice <- "Arsenite"  # Change this to select experiment
+}
+
 config <- yaml.load_file("experiment_config.yaml")
 params <- config$experiments[[experiment_choice]]
 
@@ -382,13 +387,14 @@ dat_for_plot_cut <- dat_final %>%
 p <- ggplot(dat_final, aes(x = logFC, y = Significance_new, colour = Change,
                                     text = paste("Gene:", Gene, "\n", "Description:", Description))) +
   geom_point(size = 0.7, alpha = 0.4) +
-  scale_colour_manual(values = cols) +
+  scale_colour_manual(values = cols, breaks = c("Decreased", "NS", "Increased")) +
   geom_hline(yintercept = Sign_cutoff, colour = "gray", linetype = "dashed") +
   geom_vline(xintercept = log2(FC_cutoff), colour = "gray", linetype = "dashed") +
   geom_vline(xintercept = -log2(FC_cutoff), colour = "gray", linetype = "dashed") +
   scale_x_continuous(name = "Fold Change [log2]", breaks = seq(-10, 10, 1),
                      limits = if (is.finite(cutoff_present_FC)) c(-cutoff_present_FC, cutoff_present_FC) else NULL) +
   scale_y_continuous(name = "P Value [-10lg]", breaks = seq(0, 1000, 10)) +
+  ggtitle(exp_name) +
   theme_bw(base_size = 10) +
   theme(
     plot.title = element_text(color = "black", size = 10),
@@ -401,6 +407,7 @@ p <- ggplot(dat_final, aes(x = logFC, y = Significance_new, colour = Change,
 p
 ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot.png", sep = ""), width = 6, height = 4)
 ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot.svg", sep = ""), width = 6, height = 4)
+saveRDS(p, file = paste(output_dir, "/", norm_opt, "_volcano_plot.rds", sep = ""))
 
 # ---------------------------------------------------------------------------- #
 
@@ -776,27 +783,38 @@ ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_ph
 # ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem.png", sep = ""), type = "cairo", width = 3, height = 5)
 # ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem.svg", sep = ""), width = 3, height = 5)
 
-# # ##### Heatmap for samples 
-# #x_g3bp1 <- dat_proc_out[grepl("G3bp1", dat_proc_out$Gene),]
+# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------- #
+
+# Heatmap for samples
+dat_selected_protein <- dat_proc_out[grepl("Smn1", dat_proc_out$Gene),]
 # #SG_proteins <- read.csv("ab1037_rat_orthologs.txt", dec = ".", header = F)
 # #x_g3bp1 <- dat_proc_out[toupper(dat_proc_out$Gene) %in% toupper(SG_proteins$V1),]
 # #x_g3bp1 <- x_g3bp1[!duplicated(x_g3bp1[,c('Peptide')]),]
 # x_g3bp1 <- dat_proc_out[grepl("Mapt",dat_proc_out$Gene),]
-# x_g3bp1 <- unite_(x_g3bp1, "peptide_phosphosite", c("Peptide", "Phosphosite"), remove = FALSE)
-# # create heatmap using pheatmap
-# data <- x_g3bp1[c("peptide_phosphosite", "control_1", "control_2", "control_3", "exp_1", "exp_2", "exp_3")]
-# rownames(data) <- data$peptide_phosphosite
-# data <- data[c("control_1", "control_2", "control_3", "exp_1", "exp_2", "exp_3")]
-# data_matrix <- as.matrix(data)
-# pheatmap(data_matrix, cluster_cols = F)
-# #z-score
-# cal_z_score <- function(x){
-#   (x - mean(x)) / sd(x)
-# }
-# data_norm <- t(apply(data_matrix, 1, cal_z_score))
-# data_norm <- na.omit(data_norm)
-# pheatmap(data_norm)
-# ##### Heatmap for groups
+dat_selected_protein <- unite(dat_selected_protein, "peptide_phosphosite", c("Peptide", "Gene", "Phosphosite"), remove = FALSE)
+
+# Create heatmap using pheatmap
+dat_for_heatmap <- dat_selected_protein[c("peptide_phosphosite", "control_1", "control_2", "control_3", "exp_1", "exp_2", "exp_3")] %>%
+  as.data.frame()
+
+rownames(dat_for_heatmap) <- dat_for_heatmap$peptide_phosphosite
+dat_for_heatmap <- dat_for_heatmap[c("control_1", "control_2", "control_3", "exp_1", "exp_2", "exp_3")]
+data_matrix <- as.matrix(dat_for_heatmap)
+pheatmap(data_matrix, cluster_cols = F)
+
+# z-score
+cal_z_score <- function(x){
+  (x - mean(x)) / sd(x)
+}
+data_norm <- t(apply(data_matrix, 1, cal_z_score))
+data_norm <- na.omit(data_norm)
+pheatmap(data_norm)
+
+# ---------------------------------------------------------------------------- #
+
+# Heatmap for groups
 # data <- x_g3bp1[c("Peptide", "group_control", "group_exp")]
 # rownames(data) <- data$Peptide
 # data <- data[c("group_control", "group_exp_A")]
