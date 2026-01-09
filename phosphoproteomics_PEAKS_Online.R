@@ -34,12 +34,12 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 # library(ggrepel)
 
 # Data manipulation and general utilities
-library(tidyverse)  # Includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, forcats
+library(tidyverse)       # Includes ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, forcats
 library(data.table)
 
 # Statistical analysis
-library(matrixTests)  # row_t_welch() and row_t_equalvar() for row-wise t-tests on matrices
-library(limma)  # BiocManager::install("limma")
+library(matrixTests)    # row_t_welch() and row_t_equalvar() for row-wise t-tests on matrices
+library(limma)          # BiocManager::install("limma")
 
 # Visualization
 library(ggrepel)
@@ -53,8 +53,7 @@ library(ggvenn)         # Venn diagrams with ggplot2
 library(qdap)           # remotes::install_version("qdap", version = "2.4.3")
 
 # Bioinformatics
-# BiocManager::install("Biostrings")  # See BiocManager installation above
-library(Biostrings)
+library(Biostrings)     # BiocManager::install("Biostrings")  # See BiocManager installation above
 
 # ---------------------------------------------------------------------------- #
 
@@ -71,12 +70,13 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 # Load experiment parameters from YAML
 if (!requireNamespace("yaml", quietly = TRUE)) install.packages("yaml")
 library(yaml)
+if (!exists("RUN_ALL")) RUN_ALL <- FALSE
 
 # Choose experiment: "HS", "H2O2", "Arsenite", "DEX"
 if (RUN_ALL) {
   experiment_choice = exp_name
   } else {
-  experiment_choice <- "Arsenite"  # Change this to select experiment
+  experiment_choice <- "H2O2"  # Change this to select experiment
 }
 
 config <- yaml.load_file("experiment_config.yaml")
@@ -88,7 +88,6 @@ norm_opt <- params$norm_opt
 col_control <- params$col_control
 control_name <- params$control_name
 col_exp <- params$col_exp
-# dir.create(condition)
 
 pValue_cutoff <- 0.05
 Sign_cutoff <- -10*log10(pValue_cutoff)
@@ -97,9 +96,9 @@ FC_cutoff <- 2
 cutoff_present_sign <- Inf
 cutoff_present_FC <- Inf
 
-cols <- c("Decreased" = col_control, "NS" = "#C2C2C2", "Increased" = col_exp)
+colors <- c("Decreased" = col_control, "NS" = "#C2C2C2", "Increased" = col_exp)
 output_dir <- paste(condition, "/output_", formatC(pValue_cutoff, digits = 2, format = "f"),"sign_",as.character(FC_cutoff),"fold", sep = "")
-dir.create(output_dir)
+dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 plot_title <- paste("pValue < ", as.character(pValue_cutoff),"\nFold Change > ", as.character(FC_cutoff),"\nDifference: ", condition, "/", control_name, sep = "")
 
 # ---------------------------------------------------------------------------- #
@@ -387,14 +386,14 @@ dat_for_plot_cut <- dat_final %>%
 p <- ggplot(dat_final, aes(x = logFC, y = Significance_new, colour = Change,
                                     text = paste("Gene:", Gene, "\n", "Description:", Description))) +
   geom_point(size = 0.7, alpha = 0.4) +
-  scale_colour_manual(values = cols, breaks = c("Decreased", "NS", "Increased")) +
+  scale_colour_manual(values = colors, breaks = c("Decreased", "NS", "Increased")) +
   geom_hline(yintercept = Sign_cutoff, colour = "gray", linetype = "dashed") +
   geom_vline(xintercept = log2(FC_cutoff), colour = "gray", linetype = "dashed") +
   geom_vline(xintercept = -log2(FC_cutoff), colour = "gray", linetype = "dashed") +
   scale_x_continuous(name = "Fold Change [log2]", breaks = seq(-10, 10, 1),
                      limits = if (is.finite(cutoff_present_FC)) c(-cutoff_present_FC, cutoff_present_FC) else NULL) +
   scale_y_continuous(name = "P Value [-10lg]", breaks = seq(0, 1000, 10)) +
-  ggtitle(exp_name) +
+  ggtitle(experiment_choice) +
   theme_bw(base_size = 10) +
   theme(
     plot.title = element_text(color = "black", size = 10),
@@ -520,7 +519,7 @@ dat_for_plot_cut %>% dplyr::filter(, grepl("Mapt", ignore.case = TRUE, Gene))
 p_MT_groups <- ggplot(df_nonMT, aes(x = logFC, y = Significance_new, colour = Change,
                                     text = paste("Gene:", Gene, "\n", "Description:", Description))) +
   geom_point(size = 0.7, alpha = 0.4) +
-  scale_colour_manual(values = cols) +
+  scale_colour_manual(values = colors) +
   geom_hline(yintercept = Sign_cutoff, colour = "gray", linetype = "dashed") + 
   geom_vline(xintercept = log2(FC_cutoff), colour = "gray", linetype = "dashed") + 
   geom_vline(xintercept = -log2(FC_cutoff), colour = "gray", linetype = "dashed") +
@@ -628,7 +627,7 @@ df_all_MT$Group <- as.factor(df_all_MT$Group )
 
 write.table(df_all_MT, paste(output_dir, "/", norm_opt, "_counts_of_MT_proteins.csv", sep = ""), row.names = FALSE)
 
-MT_cols <- c("Structure proteins" = color_MT_struct, 
+MT_colors <- c("Structure proteins" = color_MT_struct, 
              "Nucleators" = color_nucl, 
              "MT-binding proteins" = color_MAP, 
              "End-binding proteins" = color_EB, 
@@ -653,10 +652,10 @@ p_count_MT_groups <- ggplot(df_all_MT, aes(x = reorder(Gene, -rowname))) +
   coord_flip() +
   scale_x_discrete() +
   scale_y_continuous(name = "Number of phosphosites", limits = c(0, 30), breaks = seq(0, 100, 5)) +
-  scale_fill_manual(values = MT_cols)
+  scale_fill_manual(values = MT_colors)
 
 p_count_MT_groups
-ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_woTransp.png", sep = ""), type = "cairo", width = 2.5, height = 3)
+ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_woTransp.png", sep = ""), width = 2.5, height = 3)
 ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_woTransp.svg", sep = ""), width = 2.5, height = 3)
 
 # ---------------------------------------------------------------------------- #
@@ -686,7 +685,7 @@ df_all_MT$Group <- as.factor(df_all_MT$Group )
 
 write.table(df_all_MT, paste(output_dir, "/", norm_opt, "_counts_of_MT_proteins_Transp.csv", sep = ""), row.names = FALSE)
 
-MT_cols <- c("Structure proteins" = color_MT_struct, 
+MT_colors <- c("Structure proteins" = color_MT_struct, 
              "Nucleators" = color_nucl, 
              "MT-binding proteins" = color_MAP, 
              "End-binding proteins" = color_EB, 
@@ -711,10 +710,10 @@ p_count_MT_groups <- ggplot(df_all_MT, aes(x = reorder(Gene, rowname))) +
   coord_flip() +
   scale_x_discrete() +
   scale_y_continuous(name = "Number of phosphosites", limits = c(0, 30), breaks = seq(0, 100, 5)) +
-  scale_fill_manual(values = MT_cols)
+  scale_fill_manual(values = MT_colors)
 
 p_count_MT_groups
-ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_Transp.png", sep = ""), type = "cairo", width = 2, height = 2.5)
+ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_Transp.png", sep = ""), width = 2, height = 2.5)
 ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_Transp.svg", sep = ""), width = 2, height = 2.5)
 
 # ---------------------------------------------------------------------------- #
@@ -756,7 +755,7 @@ plot_phosphosites <- ggplot(df_MAP1b, aes(x = Phosphoposition, y = Plotting)) +
   )
 
 plot_phosphosites
-ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_phosphoprofile.png", sep = ""), type = "cairo", width = 8, height = 1)
+ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_phosphoprofile.png", sep = ""), width = 8, height = 1)
 ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_phosphoprofile.svg", sep = ""), width = 8, height = 1)
 
 # ---------------------------------------------------------------------------- #
@@ -778,9 +777,9 @@ ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_ph
 #   coord_flip() +
 #   scale_x_discrete(name = "") +
 #   scale_y_continuous(name = "Number of phosphosites]") +
-#   scale_fill_manual(values = MT_cols)
+#   scale_fill_manual(values = MT_colors)
 # 
-# ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem.png", sep = ""), type = "cairo", width = 3, height = 5)
+# ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem.png", sep = ""), width = 3, height = 5)
 # ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem.svg", sep = ""), width = 3, height = 5)
 
 # ---------------------------------------------------------------------------- #
@@ -788,7 +787,7 @@ ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_ph
 # ---------------------------------------------------------------------------- #
 
 # Heatmap for samples
-dat_selected_protein <- dat_proc_out[grepl("Smn1", dat_proc_out$Gene),]
+dat_selected_protein <- dat_proc_out[grepl("G3bp1", dat_proc_out$Gene),]
 # #SG_proteins <- read.csv("ab1037_rat_orthologs.txt", dec = ".", header = F)
 # #x_g3bp1 <- dat_proc_out[toupper(dat_proc_out$Gene) %in% toupper(SG_proteins$V1),]
 # #x_g3bp1 <- x_g3bp1[!duplicated(x_g3bp1[,c('Peptide')]),]
@@ -802,7 +801,7 @@ dat_for_heatmap <- dat_selected_protein[c("peptide_phosphosite", "control_1", "c
 rownames(dat_for_heatmap) <- dat_for_heatmap$peptide_phosphosite
 dat_for_heatmap <- dat_for_heatmap[c("control_1", "control_2", "control_3", "exp_1", "exp_2", "exp_3")]
 data_matrix <- as.matrix(dat_for_heatmap)
-pheatmap(data_matrix, cluster_cols = F)
+pheatmap(data_matrix, cluster_cols = FALSE)
 
 # z-score
 cal_z_score <- function(x){
@@ -810,7 +809,11 @@ cal_z_score <- function(x){
 }
 data_norm <- t(apply(data_matrix, 1, cal_z_score))
 data_norm <- na.omit(data_norm)
-pheatmap(data_norm)
+plot_pheatmap_standard <- pheatmap(data_norm)
+plot_pheatmap_standard
+
+ggsave(plot_pheatmap_standard, filename = paste(output_dir, "/", norm_opt, "_pheatmap_standard.png", sep = ""), width = 7, height = 6)
+ggsave(plot_pheatmap_standard, filename = paste(output_dir, "/", norm_opt, "_pheatmap_standard.svg", sep = ""), width = 7, height = 6)
 
 # ---------------------------------------------------------------------------- #
 

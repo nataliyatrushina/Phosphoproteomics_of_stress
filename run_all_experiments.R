@@ -1,6 +1,6 @@
 # Script to loop through all YAML experiment conditions and run the main analysis script for each
-
 library(yaml)
+library(patchwork)
 
 # Load experiment config
 config <- yaml.load_file("experiment_config.yaml")
