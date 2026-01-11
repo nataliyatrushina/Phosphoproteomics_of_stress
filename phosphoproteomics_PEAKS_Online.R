@@ -76,7 +76,7 @@ if (!exists("RUN_ALL")) RUN_ALL <- FALSE
 if (RUN_ALL) {
   experiment_choice = exp_name
   } else {
-  experiment_choice <- "H2O2"  # Change this to select experiment
+  experiment_choice <- "Arsenite"  # Change this to select experiment
 }
 
 config <- yaml.load_file("experiment_config.yaml")
@@ -93,10 +93,10 @@ pValue_cutoff <- 0.05
 Sign_cutoff <- -10*log10(pValue_cutoff)
 FC_cutoff <- 2
 
-cutoff_present_sign <- Inf
-cutoff_present_FC <- Inf
+cutoff_present_sign <- 60
+cutoff_present_FC <- 5
 
-colors <- c("Decreased" = col_control, "NS" = "#C2C2C2", "Increased" = col_exp)
+colors <- c("downregulated" = col_control, "unchanged" = "#C2C2C2", "upregulated" = col_exp)
 output_dir <- paste(condition, "/output_", formatC(pValue_cutoff, digits = 2, format = "f"),"sign_",as.character(FC_cutoff),"fold", sep = "")
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 plot_title <- paste("pValue < ", as.character(pValue_cutoff),"\nFold Change > ", as.character(FC_cutoff),"\nDifference: ", condition, "/", control_name, sep = "")
@@ -241,18 +241,18 @@ if (norm_opt == "norm") {
   # ---------------------------------------------------------------------------- #
   
   print("NORMALIZING")
-  x_fin <- dat_proc_out_norm
-  unique_control <- filter(x_fin, (control_1 != 0 & control_2 != 0 & control_3 != 0) & (exp_1 == 0 & exp_2 == 0 & exp_3 == 0))
+  dat_fin <- dat_proc_out_norm
+  unique_control <- filter(dat_fin, (control_1 != 0 & control_2 != 0 & control_3 != 0) & (exp_1 == 0 & exp_2 == 0 & exp_3 == 0))
   # unique_control$norm_group_control <- unique_control$prot_exp*unique_control$group_control/unique_control$prot_control
   if (nrow(unique_control) > 0) unique_control$Detected <- "Unique in control"
-  unique_decreased_genes <- as.data.frame(na.omit(unique(unique_control$Gene)))
+  unique_downregulated_genes <- as.data.frame(na.omit(unique(unique_control$Gene)))
   # write.table(unique_decreased_genes, paste(output_dir, "/", norm_opt, "_unique_in_control_genes.txt", sep = ""), sep = ';', row.names = FALSE, col.names = FALSE, quote = FALSE)
-  unique_exp <- filter(x_fin, (control_1 == 0 & control_2 == 0 & control_3 == 0) & (exp_1 != 0 & exp_2 != 0 & exp_3 != 0))
+  unique_exp <- filter(dat_fin, (control_1 == 0 & control_2 == 0 & control_3 == 0) & (exp_1 != 0 & exp_2 != 0 & exp_3 != 0))
   # unique_exp$norm_group_exp <- unique_exp$prot_control*unique_exp$group_exp/unique_exp$prot_exp
   if (nrow(unique_exp) > 0) unique_exp$Detected <- "Unique in experiment"
   unique_increased_genes <- as.data.frame(na.omit(unique(unique_exp$Gene)))
   # write.table(unique_increased_genes, paste(output_dir, "/", norm_opt, "_unique_in_exp_genes.txt", sep = ""), sep = ';', row.names = FALSE, col.names = FALSE, quote = FALSE)
-  detected_in_all <- filter(x_fin, control_1 != 0 & control_2 != 0 & control_3 != 0 & exp_1 != 0 & exp_2 != 0 & exp_3 != 0) # & exp_2 != 0 & exp_3 != 0)
+  detected_in_all <- filter(dat_fin, control_1 != 0 & control_2 != 0 & control_3 != 0 & exp_1 != 0 & exp_2 != 0 & exp_3 != 0) # & exp_2 != 0 & exp_3 != 0)
   detected_in_all$Detected <- "In all samples"
   
   prot_norm_factor <- detected_in_all$prot_control / detected_in_all$prot_exp
@@ -309,30 +309,26 @@ if (norm_opt == "norm") {
   # detected_in_all$adjusted_new_pvalue <- stat_phosph$adj.P.Val
   detected_in_all$Significance_new <- -10*log10(detected_in_all$new_pvalue)
   detected_in_all$Significance_new_adjusted <- -10*log10(detected_in_all$adjusted_new_pvalue)
-  x_fin_3or3 <- plyr::rbind.fill(unique_control, detected_in_all, unique_exp)
-  dat_final <- x_fin_3or3[c("Accession", "PhosPep", "Phosphopeptide", "Gene", "Description", "Phosphosite","FC", "logFC", "Significance_new", "Detected")]
+  dat_fin_3or3 <- plyr::rbind.fill(unique_control, detected_in_all, unique_exp)
+  dat_final <- dat_fin_3or3[c("Accession", "PhosPep", "Phosphopeptide", "Gene", "Description", "Phosphosite","FC", "logFC", "Significance_new", "Detected")]
   
 } else {
   
   print("NOT NORMALIZING")
-  x_fin <- dat_proc_out
-  unique_control <- filter(x_fin, (control_1 != 0 & control_2 != 0 & control_3 != 0) & (exp_1 == 0 & exp_2 == 0 & exp_3 == 0))
-  # unique_control$norm_group_control <- unique_control$prot_exp*unique_control$group_control/unique_control$prot_control
+  dat_fin <- dat_proc_out
+  unique_control <- dat_fin %>% dplyr::filter((control_1 != 0 & control_2 != 0 & control_3 != 0) & (exp_1 == 0 & exp_2 == 0 & exp_3 == 0))
   unique_control$Detected <- "Unique in control"
-  unique_decreased_genes <- as.data.frame(na.omit(unique(unique_control$Gene)))
-  write.table(unique_decreased_genes, paste(output_dir, "/", norm_opt, "_unique_in_control_genes.txt", sep = ""), sep = ';', row.names = FALSE, col.names = FALSE, quote = FALSE)
-  unique_exp <- filter(x_fin, (control_1 == 0 & control_2 == 0 & control_3 == 0) & (exp_1 != 0 & exp_2 != 0 & exp_3 != 0))
-  # unique_exp$norm_group_exp <- unique_exp$prot_control*unique_exp$group_exp/unique_exp$prot_exp
+  # unique_decreased_genes <- as.data.frame(na.omit(unique(unique_control$Gene)))
+  # write.table(unique_decreased_genes, paste(output_dir, "/", norm_opt, "_unique_in_control_genes.txt", sep = ""), sep = ';', row.names = FALSE, col.names = FALSE, quote = FALSE)
   
+  unique_exp <- filter(dat_fin, (control_1 == 0 & control_2 == 0 & control_3 == 0) & (exp_1 != 0 & exp_2 != 0 & exp_3 != 0))
   unique_exp$Detected <- "Unique in experiment"
-  unique_increased_genes <- as.data.frame(na.omit(unique(unique_exp$Gene)))
-  write.table(unique_increased_genes, paste(output_dir, "/", norm_opt, "_unique_in_exp_genes.txt", sep = ""), sep = ';', row.names = FALSE, col.names = FALSE, quote = FALSE)
-  detected_in_all <- filter(x_fin, control_1 != 0 & control_2 != 0 & control_3 != 0 & exp_1 != 0 & exp_2 != 0 & exp_3 != 0) # & exp_2 != 0 & exp_3 != 0)
+  detected_in_all <- filter(dat_fin, control_1 != 0 & control_2 != 0 & control_3 != 0 & exp_1 != 0 & exp_2 != 0 & exp_3 != 0)
   
   detected_in_all$Detected <- "In all samples"
   
-  x_fin_3or3 <- plyr::rbind.fill(unique_control, detected_in_all, unique_exp)
-  dat_final <- x_fin_3or3[c("Accession", "PhosPep", "Phosphopeptide", "Gene", "Description", "Phosphosite","FC", "logFC", "Significance", "Detected")]
+  dat_fin_3or3 <- plyr::rbind.fill(unique_control, detected_in_all, unique_exp)
+  dat_final <- dat_fin_3or3[c("Accession", "PhosPep", "Phosphopeptide", "Gene", "Description", "Phosphosite","FC", "logFC", "Significance", "Detected")]
 }
 
 # ---------------------------------------------------------------------------- #
@@ -345,12 +341,12 @@ dat_final <- dat_final %>%
     ) %>%
   dplyr::mutate(
     Change = dplyr::case_when(
-      Significance_new <= Sign_cutoff ~ "NS",
-      FC >= FC_cutoff | Detected == "Unique in experiment" ~ "Increased",
-      FC <= 1 / FC_cutoff | Detected == "Unique in control" ~ "Decreased",
-      TRUE ~ "NS"
+      Significance_new <= Sign_cutoff ~ "unchanged",
+      FC >= FC_cutoff | Detected == "Unique in experiment" ~ "upregulated",
+      FC <= 1 / FC_cutoff | Detected == "Unique in control" ~ "downregulated",
+      TRUE ~ "unchanged"
     ),
-    Change = as.factor(Change)
+    Condition = experiment_choice
   ) %>% 
   mutate(Phosphosite = strsplit(as.character(Phosphosite), ", ")) %>% 
   unnest(Phosphosite) %>%
@@ -359,12 +355,38 @@ dat_final <- dat_final %>%
 dat_final %>%
   writexl::write_xlsx(file.path(output_dir, "Dataset_processesed_annotated_for_iGPS_and_KEA2_full.xlsx"))
 
-# write.table(apply(dat_final_out[dat_final_out$Change == "Increased",], 2, as.character), paste(output_dir, "/", norm_opt, "_out_for_iGPS_and_KEA2_increased.csv", sep = ""), row.names = FALSE)
-# write.table(apply(dat_final_out[dat_final_out$Change == "Decreased",], 2, as.character), paste(output_dir, "/", norm_opt, "_out_for_iGPS_and_KEA2_decreased.csv", sep = ""), row.names = FALSE)
-# write.table(apply(dat_final_out,2,as.character), paste0(output_dir, "/", norm_opt, "_out_for_iGPS_and_KEA2_all.csv"), row.names = FALSE)
-
 # ---------------------------------------------------------------------------- #
 # --- Visualization ---------------------------------------------------------- #
+# ---------------------------------------------------------------------------- #
+
+# Use dat_final for the total plot without any cut values transfromed to Inf
+p <- ggplot(dat_final, aes(x = logFC, y = Significance_new, colour = Change,
+                           text = paste("Gene:", Gene, "\n", "Description:", Description))) +
+  geom_point(size = 0.7, alpha = 0.4) +
+  scale_colour_manual(values = colors, breaks = c("downregulated", "unchanged", "upregulated")) +
+  geom_hline(yintercept = Sign_cutoff, colour = "gray", linetype = "dashed") +
+  geom_vline(xintercept = log2(FC_cutoff), colour = "gray", linetype = "dashed") +
+  geom_vline(xintercept = -log2(FC_cutoff), colour = "gray", linetype = "dashed") +
+  scale_x_continuous(name = "Fold Change [log2]", breaks = seq(-10, 10, 1),
+                     limits = if (is.finite(cutoff_present_FC)) c(-cutoff_present_FC, cutoff_present_FC) else NULL) +
+  scale_y_continuous(name = "P Value [-10lg]", breaks = seq(0, 1000, 10)) +
+  ggtitle(experiment_choice) +
+  theme_bw(base_size = 10) +
+  theme(
+    plot.title = element_text(color = "black", size = 10),
+    axis.text.x = element_text(color = "black"),
+    axis.text.y = element_text(color = "black"),
+    panel.grid.minor = element_blank(),
+    legend.position = "top"
+  )
+
+p
+# ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot.png", sep = ""), width = 6, height = 4)
+ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot.svg", sep = ""), width = 6, height = 4)
+saveRDS(p, file = paste(output_dir, "/", norm_opt, "_volcano_plot.rds", sep = ""))
+
+# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------- #
 # ---------------------------------------------------------------------------- #
 
 # TODO fix to have better overview of cut-offs and not accidentally cut the plot on total
@@ -383,10 +405,11 @@ dat_for_plot_cut <- dat_final %>%
 
 # ---------------------------------------------------------------------------- #
 
-p <- ggplot(dat_final, aes(x = logFC, y = Significance_new, colour = Change,
+# Use dat_final for the total plot without any cut values transfromed to Inf
+p <- ggplot(dat_for_plot_cut, aes(x = logFC, y = Significance_new, colour = Change,
                                     text = paste("Gene:", Gene, "\n", "Description:", Description))) +
   geom_point(size = 0.7, alpha = 0.4) +
-  scale_colour_manual(values = colors, breaks = c("Decreased", "NS", "Increased")) +
+  scale_colour_manual(values = colors, breaks = c("downregulated", "unchanged", "upregulated")) +
   geom_hline(yintercept = Sign_cutoff, colour = "gray", linetype = "dashed") +
   geom_vline(xintercept = log2(FC_cutoff), colour = "gray", linetype = "dashed") +
   geom_vline(xintercept = -log2(FC_cutoff), colour = "gray", linetype = "dashed") +
@@ -404,11 +427,70 @@ p <- ggplot(dat_final, aes(x = logFC, y = Significance_new, colour = Change,
   )
 
 p
-ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot.png", sep = ""), width = 6, height = 4)
-ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot.svg", sep = ""), width = 6, height = 4)
-saveRDS(p, file = paste(output_dir, "/", norm_opt, "_volcano_plot.rds", sep = ""))
+# ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot.png", sep = ""), width = 6, height = 4)
+ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot_cut.svg", sep = ""), width = 6, height = 4)
+saveRDS(p, file = paste(output_dir, "/", norm_opt, "_volcano_plot_cut.rds", sep = ""))
 
 # ---------------------------------------------------------------------------- #
+
+genes_selected <- readr::read_lines("knownSG_rat_orthologs.txt")
+# dat_for_plot_cut_selected <- dplyr::filter(dat_for_plot_cut, Gene %in% genes_selected)
+dat_for_plot_cut_selected <- dat_for_plot_cut %>%
+  dplyr::filter(Gene %in% genes_selected) %>%
+  dplyr::group_by(logFC, Significance_new) %>%
+  dplyr::slice(1) %>%
+  dplyr::ungroup()
+
+# Use dat_final for the total plot without any cut values transfromed to Inf
+p <- ggplot(dplyr::filter(dat_for_plot_cut, !Gene %in% genes_selected), aes(x = logFC, y = Significance_new, colour = Change,
+                                  text = paste("Gene:", Gene, "\n", "Description:", Description))) +
+  geom_point(size = 0.7, alpha = 0.4) +
+  scale_colour_manual(values = colors, breaks = c("downregulated", "unchanged", "upregulated")) +
+  geom_hline(yintercept = Sign_cutoff, colour = "gray", linetype = "dashed") +
+  geom_vline(xintercept = log2(FC_cutoff), colour = "gray", linetype = "dashed") +
+  geom_vline(xintercept = -log2(FC_cutoff), colour = "gray", linetype = "dashed") +
+  scale_x_continuous(name = "Fold Change [log2]", breaks = seq(-10, 10, 1),
+                     limits = if (is.finite(cutoff_present_FC)) c(-cutoff_present_FC, cutoff_present_FC) else NULL) +
+  scale_y_continuous(name = "P Value [-10lg]", breaks = seq(0, 1000, 10)) +
+  ggtitle(experiment_choice) +
+  theme_bw(base_size = 10) +
+  theme(
+    plot.title = element_text(color = "black", size = 10),
+    axis.text.x = element_text(color = "black"),
+    axis.text.y = element_text(color = "black"),
+    panel.grid.minor = element_blank(),
+    legend.position = "top"
+  ) +
+  # ggrepel::geom_text_repel(
+  #   data = dplyr::filter(dat_for_plot_cut_selected, Change != "unchanged"),
+  #   # direction = "y",
+  #   color = "red",
+  #   aes(label = Gene),
+  #   size = 2,
+  #   max.overlaps = Inf
+  # ) +
+  geom_point(
+    data = dat_for_plot_cut_selected,
+    aes(shape = "Stress granule\nassociated proteins"),
+    fill = "red",
+    color = "white",
+    size = 1.5,
+    alpha = 0.5
+  ) +
+  scale_shape_manual(
+    name = "",
+    values = c("Stress granule\nassociated proteins" = 21),
+    breaks = "Stress granule\nassociated proteins",
+    guide = guide_legend(nrow = 1)
+  )
+
+p
+# ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot.png", sep = ""), width = 6, height = 4)
+ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot_cut_selected.svg", sep = ""), width = 6, height = 4)
+saveRDS(p, file = paste(output_dir, "/", norm_opt, "_volcano_plot_cut_selected.rds", sep = ""))
+
+# ---------------------------------------------------------------------------- #
+
 
 # MT-associated genes
 color_MT_struct <- "#FFBD00"
@@ -439,7 +521,7 @@ dat_MT <- rbind(dat_MT_struct, dat_nucl, dat_MAP, dat_EB, dat_stmn, dat_sever, d
 
 # ---------------------------------------------------------------------------- #
 
-dat_MT <- dat_final %>%
+dat_MT <- dat_for_plot_cut %>%
   mutate(Category = case_when(
     grepl(paste(patterns_MT_struct, collapse = "|"), Gene, ignore.case = TRUE) ~ "Structure proteins",
     grepl(paste(patterns_nucl, collapse = "|"), Gene, ignore.case = TRUE) ~ "Nucleators",
@@ -461,22 +543,22 @@ dat_MT <- dat_final %>%
     "Change direction" = Change
   )
 
-options <- c("Increased", "Decreased")
-for (option in options) {
-  dat_MT %>%
-    dplyr::filter(`Change direction` == option) %>%
-    writexl::write_xlsx(paste0(output_dir, "/", condition, "_MTsystem", "_", option, ".xlsx"))
-}
+# options <- c("upregulated", "downregulated")
+# for (option in options) {
+#   dat_MT %>%
+#     dplyr::filter(`Change direction` == option) %>%
+#     writexl::write_xlsx(paste0(output_dir, "/", condition, "_MTsystem", "_", option, ".xlsx"))
+# }
 
 # ---------------------------------------------------------------------------- #
 
-.labs_sele_MT_struct <- dat_MT_struct$Gene_phosphosite[dat_MT_struct$Change != "NS"]
-.labs_sele_nucl <- dat_nucl$Gene_phosphosite[dat_nucl$Change != "NS"] 
-.labs_sele_MAP <- dat_MAP$Gene_phosphosite[dat_MAP$Change != "NS"] 
-.labs_sele_EB <- dat_EB$Gene_phosphosite[dat_EB$Change != "NS"] 
-.labs_sele_stmn <- dat_stmn$Gene_phosphosite[dat_stmn$Change != "NS"] 
-.labs_sele_sever <- dat_sever$Gene_phosphosite [dat_sever$Change != "NS"] 
-.labs_sele_transp <- dat_transp$Gene_phosphosite[dat_transp$Change != "NS"] 
+.labs_sele_MT_struct <- dat_MT_struct$Gene_phosphosite[dat_MT_struct$Change != "unchanged"]
+.labs_sele_nucl <- dat_nucl$Gene_phosphosite[dat_nucl$Change != "unchanged"] 
+.labs_sele_MAP <- dat_MAP$Gene_phosphosite[dat_MAP$Change != "unchanged"] 
+.labs_sele_EB <- dat_EB$Gene_phosphosite[dat_EB$Change != "unchanged"] 
+.labs_sele_stmn <- dat_stmn$Gene_phosphosite[dat_stmn$Change != "unchanged"] 
+.labs_sele_sever <- dat_sever$Gene_phosphosite [dat_sever$Change != "unchanged"] 
+.labs_sele_transp <- dat_transp$Gene_phosphosite[dat_transp$Change != "unchanged"] 
 
 print("1) All found in dataset, 2) DEPs")
 print("Structure proteins")
@@ -524,37 +606,37 @@ p_MT_groups <- ggplot(df_nonMT, aes(x = logFC, y = Significance_new, colour = Ch
   geom_vline(xintercept = log2(FC_cutoff), colour = "gray", linetype = "dashed") + 
   geom_vline(xintercept = -log2(FC_cutoff), colour = "gray", linetype = "dashed") +
   geom_point(data = dat_MT_struct, aes(fill = color_MT_struct), size = 1.5, shape = 21, alpha = 0.8) +
-  ggrepel::geom_text_repel(data = dat_MT_struct[dat_MT_struct$Change != "NS",],
+  ggrepel::geom_text_repel(data = dat_MT_struct[dat_MT_struct$Change != "unchanged",],
                            direction = "y", #nudge_x = -2, force = 20,
                            aes(label = .labs_sele_MT_struct),
                            color = color_MT_struct,
                            size = 2, max.overlaps = Inf) +
   geom_point(data = dat_nucl, aes(fill = color_nucl), color = "white", size = 1.5, shape = 21, alpha = 0.8) +
-  geom_text_repel(data = dat_nucl[dat_nucl$Change != "NS",],
+  geom_text_repel(data = dat_nucl[dat_nucl$Change != "unchanged",],
                   #direction = "x", nudge_x = -2, force = 20,
                   aes(label = .labs_sele_nucl),
                   color = color_nucl,
                   size = 2, max.overlaps = Inf) +
   geom_point(data = dat_MAP, aes(fill = color_MAP), color = "white", size = 1.5, shape = 21, alpha = 0.8) +
-  geom_text_repel(data = dat_MAP[dat_MAP$Change != "NS",],
+  geom_text_repel(data = dat_MAP[dat_MAP$Change != "unchanged",],
                   #direction = "x", #nudge_x = -2, force = 20,
                   aes(label = .labs_sele_MAP),
                   color = color_MAP,
                   size = 2, max.overlaps = Inf) +
   geom_point(data = dat_EB, aes(fill = color_EB), color = "white", size = 1.5, shape = 21, alpha = 0.8) +
-  geom_text_repel(data = dat_EB[dat_EB$Change != "NS",],
+  geom_text_repel(data = dat_EB[dat_EB$Change != "unchanged",],
                   #direction = "x", nudge_x = -2, force = 20,
                   aes(label = .labs_sele_EB),
                   color = color_EB,
                   size = 2, max.overlaps = Inf) +
   geom_point(data = dat_stmn, aes(fill = color_stmn), color = "white", size = 1.5, shape = 21, alpha = 0.8) +
-  geom_text_repel(data = dat_stmn[dat_stmn$Change != "NS",],
+  geom_text_repel(data = dat_stmn[dat_stmn$Change != "unchanged",],
                   direction = "x", #nudge_x = -2, force = 20,
                   aes(label = .labs_sele_stmn),
                   color = color_stmn,
                   size = 2, max.overlaps = Inf) +
   geom_point(data = dat_sever, aes(fill = color_sever), color = "white", size = 1.5, shape = 21, alpha = 0.8) +
-  geom_text_repel(data = dat_sever[dat_sever$Change != "NS",],
+  geom_text_repel(data = dat_sever[dat_sever$Change != "unchanged",],
                   direction = "x", #nudge_x = -2, force = 20,
                   aes(label = .labs_sele_sever),
                   color = color_sever,
@@ -581,166 +663,166 @@ p_MT_groups <- ggplot(df_nonMT, aes(x = logFC, y = Significance_new, colour = Ch
   guides(colour = guide_legend(nrow = 3))
 
 p_MT_groups
-ggsave(p_MT_groups, filename = paste(output_dir, "/", norm_opt, "_volcano_plot_MTsystem.png", sep = ""), width = 7, height = 6)
+# ggsave(p_MT_groups, filename = paste(output_dir, "/", norm_opt, "_volcano_plot_MTsystem.png", sep = ""), width = 7, height = 6)
 ggsave(p_MT_groups, filename = paste(output_dir, "/", norm_opt, "_volcano_plot_MTsystem.svg", sep = ""), width = 7, height = 6)
 
-# ---------------------------------------------------------------------------- #
-# --- Bar plots for MT system groups ----------------------------------------- #
-# ---------------------------------------------------------------------------- #
+# # ---------------------------------------------------------------------------- #
+# # --- Bar plots for MT system groups ----------------------------------------- #
+# # ---------------------------------------------------------------------------- #
+# 
+# dat_MT_struct$Group <- "Structure proteins"
+# dat_nucl$Group <-  "Nucleators"
+# dat_MAP$Group <- "MT-binding proteins"
+# dat_EB$Group <- "End-binding proteins"
+# dat_stmn$Group  <- "Tubulin-sequestering\nproteins"
+# dat_sever$Group <- "MT-severing proteins"
+# dat_transp$Group <- "MT transport proteins"
+# 
+# df_all_MT <- rbind(
+#   dat_MT_struct[dat_MT_struct$Change == "upregulated",],
+#   dat_nucl[dat_nucl$Change == "upregulated",],
+#   dat_MAP[dat_MAP$Change == "upregulated",],
+#   dat_EB[dat_EB$Change == "upregulated",],
+#   dat_stmn[dat_stmn$Change == "upregulated",], 
+#   dat_sever[dat_sever$Change == "upregulated",]#, 
+#   #dat_transp[dat_transp$Change == "upregulated",]
+# )
+# 
+# df_all_MT <- df_all_MT %>% 
+#   group_by(Group, Gene, Gene_phosphosite) %>%
+#   tally() %>%
+#   arrange(match(Group, unique(Group)), Gene_phosphosite)
+# 
+# #To order the conditions manually
+# x <- c("MT-binding proteins", 
+#        "End-binding proteins", "Tubulin-sequestering\nproteins",
+#        "Structure proteins", "Nucleators", 
+#        "MT-severing proteins", "MT transport proteins")
+# 
+# df_all_MT <- df_all_MT %>% 
+#   mutate(Group =  factor(Group, levels = x)) %>%
+#   arrange(Group) %>%
+#   rownames_to_column()
+# 
+# df_all_MT$rowname <- as.numeric(df_all_MT$rowname )
+# df_all_MT$Group <- as.factor(df_all_MT$Group )
+# 
+# # write.table(df_all_MT, paste(output_dir, "/", norm_opt, "_counts_of_MT_proteins.csv", sep = ""), row.names = FALSE)
+# 
+# MT_colors <- c("Structure proteins" = color_MT_struct, 
+#              "Nucleators" = color_nucl, 
+#              "MT-binding proteins" = color_MAP, 
+#              "End-binding proteins" = color_EB, 
+#              "Tubulin-sequestering\nproteins" = color_stmn, 
+#              "MT-severing proteins" = color_sever#, 
+#              # "MT transport proteins" = color_transp
+# )
+# 
+# p_count_MT_groups <- ggplot(df_all_MT, aes(x = reorder(Gene, -rowname))) + 
+#   geom_bar(aes(fill = Group)) +
+#   theme_bw(base_size = 10)+
+#   theme(plot.title = element_text(color = "black", size = 10),
+#         axis.ticks = element_line(colour = "black"),
+#         axis.text.x = element_text(color = "black"),
+#         axis.text.y = element_text(color = "black"),
+#         #legend.text = element_text(size = 10),
+#         panel.grid.minor = element_blank(),
+#         panel.grid.major.y = element_blank(),
+#         legend.position = "none",
+#         axis.title.y = element_blank()
+#   ) +
+#   coord_flip() +
+#   scale_x_discrete() +
+#   scale_y_continuous(name = "Number of phosphosites", limits = c(0, 30), breaks = seq(0, 100, 5)) +
+#   scale_fill_manual(values = MT_colors)
+# 
+# p_count_MT_groups
+# # ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_woTransp.png", sep = ""), width = 2.5, height = 3)
+# # ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_woTransp.svg", sep = ""), width = 2.5, height = 3)
 
-dat_MT_struct$Group <- "Structure proteins"
-dat_nucl$Group <-  "Nucleators"
-dat_MAP$Group <- "MT-binding proteins"
-dat_EB$Group <- "End-binding proteins"
-dat_stmn$Group  <- "Tubulin-sequestering\nproteins"
-dat_sever$Group <- "MT-severing proteins"
-dat_transp$Group <- "MT transport proteins"
-
-df_all_MT <- rbind(
-  dat_MT_struct[dat_MT_struct$Change == "Increased",],
-  dat_nucl[dat_nucl$Change == "Increased",],
-  dat_MAP[dat_MAP$Change == "Increased",],
-  dat_EB[dat_EB$Change == "Increased",],
-  dat_stmn[dat_stmn$Change == "Increased",], 
-  dat_sever[dat_sever$Change == "Increased",]#, 
-  #dat_transp[dat_transp$Change == "Increased",]
-)
-
-df_all_MT <- df_all_MT %>% 
-  group_by(Group, Gene, Gene_phosphosite) %>%
-  tally() %>%
-  arrange(match(Group, unique(Group)), Gene_phosphosite)
-
-#To order the conditions manually
-x <- c("MT-binding proteins", 
-       "End-binding proteins", "Tubulin-sequestering\nproteins",
-       "Structure proteins", "Nucleators", 
-       "MT-severing proteins", "MT transport proteins")
-
-df_all_MT <- df_all_MT %>% 
-  mutate(Group =  factor(Group, levels = x)) %>%
-  arrange(Group) %>%
-  rownames_to_column()
-
-df_all_MT$rowname <- as.numeric(df_all_MT$rowname )
-df_all_MT$Group <- as.factor(df_all_MT$Group )
-
-write.table(df_all_MT, paste(output_dir, "/", norm_opt, "_counts_of_MT_proteins.csv", sep = ""), row.names = FALSE)
-
-MT_colors <- c("Structure proteins" = color_MT_struct, 
-             "Nucleators" = color_nucl, 
-             "MT-binding proteins" = color_MAP, 
-             "End-binding proteins" = color_EB, 
-             "Tubulin-sequestering\nproteins" = color_stmn, 
-             "MT-severing proteins" = color_sever#, 
-             # "MT transport proteins" = color_transp
-)
-
-p_count_MT_groups <- ggplot(df_all_MT, aes(x = reorder(Gene, -rowname))) + 
-  geom_bar(aes(fill = Group)) +
-  theme_bw(base_size = 10)+
-  theme(plot.title = element_text(color = "black", size = 10),
-        axis.ticks = element_line(colour = "black"),
-        axis.text.x = element_text(color = "black"),
-        axis.text.y = element_text(color = "black"),
-        #legend.text = element_text(size = 10),
-        panel.grid.minor = element_blank(),
-        panel.grid.major.y = element_blank(),
-        legend.position = "none",
-        axis.title.y = element_blank()
-  ) +
-  coord_flip() +
-  scale_x_discrete() +
-  scale_y_continuous(name = "Number of phosphosites", limits = c(0, 30), breaks = seq(0, 100, 5)) +
-  scale_fill_manual(values = MT_colors)
-
-p_count_MT_groups
-ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_woTransp.png", sep = ""), width = 2.5, height = 3)
-ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_woTransp.svg", sep = ""), width = 2.5, height = 3)
-
-# ---------------------------------------------------------------------------- #
-# --- Bar plots for MT transport --------------------------------------------- #
-# ---------------------------------------------------------------------------- #
-
-df_all_MT <- rbind(
-  dat_transp[dat_transp$Change == "Increased",]
-)
-write.table(df_all_MT, paste(output_dir, "/", norm_opt, "_MTsystem_Transp.csv", sep = ""), row.names = FALSE)
-
-df_all_MT <- df_all_MT %>% 
-  group_by(Group, Gene, Gene_phosphosite) %>%
-  tally() %>%
-  arrange(match(Group, unique(Group)), Gene_phosphosite)
-
-# To order the conditions manually
-MT_levels <- c("MT-binding proteins", "End-binding proteins", "Tubulin-sequestering\nproteins", "Structure proteins", "Nucleators", "MT-severing proteins", "MT transport proteins")
-
-df_all_MT <- df_all_MT %>% 
-  mutate(Group =  factor(Group, levels = MT_levels)) %>%
-  arrange(Group) %>%
-  rownames_to_column()
-
-df_all_MT$rowname <- as.numeric(df_all_MT$rowname )
-df_all_MT$Group <- as.factor(df_all_MT$Group )
-
-write.table(df_all_MT, paste(output_dir, "/", norm_opt, "_counts_of_MT_proteins_Transp.csv", sep = ""), row.names = FALSE)
-
-MT_colors <- c("Structure proteins" = color_MT_struct, 
-             "Nucleators" = color_nucl, 
-             "MT-binding proteins" = color_MAP, 
-             "End-binding proteins" = color_EB, 
-             "Tubulin-sequestering\nproteins" = color_stmn, 
-             "MT-severing proteins" = color_sever, 
-             "MT transport proteins" = color_transp
-)
-
-p_count_MT_groups <- ggplot(df_all_MT, aes(x = reorder(Gene, rowname))) +
-  geom_bar(aes(fill = Group)) +
-  theme_bw(base_size = 10)+
-  theme(plot.title = element_text(color = "black", size = 10),
-        axis.ticks = element_line(colour = "black"),
-        axis.text.x = element_text(color = "black"),
-        axis.text.y = element_text(color = "black"),
-        # legend.text = element_text(size = 10),
-        panel.grid.minor = element_blank(),
-        panel.grid.major.y = element_blank(),
-        legend.position = "none",
-        axis.title.y = element_blank()
-  ) +
-  coord_flip() +
-  scale_x_discrete() +
-  scale_y_continuous(name = "Number of phosphosites", limits = c(0, 30), breaks = seq(0, 100, 5)) +
-  scale_fill_manual(values = MT_colors)
-
-p_count_MT_groups
-ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_Transp.png", sep = ""), width = 2, height = 2.5)
-ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_Transp.svg", sep = ""), width = 2, height = 2.5)
+# # ---------------------------------------------------------------------------- #
+# # --- Bar plots for MT transport --------------------------------------------- #
+# # ---------------------------------------------------------------------------- #
+# 
+# df_all_MT <- rbind(
+#   dat_transp[dat_transp$Change == "upregulated",]
+# )
+# # write.table(df_all_MT, paste(output_dir, "/", norm_opt, "_MTsystem_Transp.csv", sep = ""), row.names = FALSE)
+# 
+# df_all_MT <- df_all_MT %>% 
+#   group_by(Group, Gene, Gene_phosphosite) %>%
+#   tally() %>%
+#   arrange(match(Group, unique(Group)), Gene_phosphosite)
+# 
+# # To order the conditions manually
+# MT_levels <- c("MT-binding proteins", "End-binding proteins", "Tubulin-sequestering\nproteins", "Structure proteins", "Nucleators", "MT-severing proteins", "MT transport proteins")
+# 
+# df_all_MT <- df_all_MT %>% 
+#   mutate(Group =  factor(Group, levels = MT_levels)) %>%
+#   arrange(Group) %>%
+#   rownames_to_column()
+# 
+# df_all_MT$rowname <- as.numeric(df_all_MT$rowname )
+# df_all_MT$Group <- as.factor(df_all_MT$Group )
+# 
+# # write.table(df_all_MT, paste(output_dir, "/", norm_opt, "_counts_of_MT_proteins_Transp.csv", sep = ""), row.names = FALSE)
+# 
+# MT_colors <- c("Structure proteins" = color_MT_struct, 
+#              "Nucleators" = color_nucl, 
+#              "MT-binding proteins" = color_MAP, 
+#              "End-binding proteins" = color_EB, 
+#              "Tubulin-sequestering\nproteins" = color_stmn, 
+#              "MT-severing proteins" = color_sever, 
+#              "MT transport proteins" = color_transp
+# )
+# 
+# p_count_MT_groups <- ggplot(df_all_MT, aes(x = reorder(Gene, rowname))) +
+#   geom_bar(aes(fill = Group)) +
+#   theme_bw(base_size = 10)+
+#   theme(plot.title = element_text(color = "black", size = 10),
+#         axis.ticks = element_line(colour = "black"),
+#         axis.text.x = element_text(color = "black"),
+#         axis.text.y = element_text(color = "black"),
+#         # legend.text = element_text(size = 10),
+#         panel.grid.minor = element_blank(),
+#         panel.grid.major.y = element_blank(),
+#         legend.position = "none",
+#         axis.title.y = element_blank()
+#   ) +
+#   coord_flip() +
+#   scale_x_discrete() +
+#   scale_y_continuous(name = "Number of phosphosites", limits = c(0, 30), breaks = seq(0, 100, 5)) +
+#   scale_fill_manual(values = MT_colors)
+# 
+# p_count_MT_groups
+# ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_Transp.png", sep = ""), width = 2, height = 2.5)
+# ggsave(p_count_MT_groups, filename = paste(output_dir, "/", norm_opt, "_geom_bar_MTsystem_Transp.svg", sep = ""), width = 2, height = 2.5)
 
 # ---------------------------------------------------------------------------- #
 # --- MAP1b phosphoprofile scheme -------------------------------------------- #
 # ---------------------------------------------------------------------------- #
 
-dat_MAP_increased <- dat_MAP[dat_MAP$Change == "Increased",]
-df_MAP1b <- dat_MAP_increased[dat_MAP_increased$Gene == "Map1b",]
+dat_increased <- dat_for_plot_cut[dat_for_plot_cut$Change == "upregulated",]
+dat_selected_protein <- dat_for_plot_cut[dat_for_plot_cut$Gene == "G3bp1",]
 
-df_MAP1b$Phosphoposition <- gsub('\\D+','', df_MAP1b$Phosphosite)
-df_MAP1b$Phosphoposition <- as.numeric(df_MAP1b$Phosphoposition)
-df_MAP1b$Plotting <- 1
-.labs_sele_MAP1b <- df_MAP1b$Phosphosite
+dat_selected_protein$Phosphoposition <- gsub('\\D+','', dat_selected_protein$Phosphosite)
+dat_selected_protein$Phosphoposition <- as.numeric(dat_selected_protein$Phosphoposition)
+dat_selected_protein$Plotting <- 1
+.labs_sele_MAP1b <- dat_selected_protein$Phosphosite
 
-plot_phosphosites <- ggplot(df_MAP1b, aes(x = Phosphoposition, y = Plotting)) +
+plot_phosphosites <- ggplot(dat_selected_protein, aes(x = Phosphoposition, y = Plotting)) +
   geom_point(stat = "identity", color = col_exp, size = 1) +
   geom_hline(yintercept = 0, color = "black") +
   ggtitle("Phosphoprofile of MAP1B") +
   xlab("Residue number") +
-  scale_x_continuous(limits = c(0,2774), breaks = seq(0, 2800, 200)) +
-  geom_text_repel(data = df_MAP1b,
+  scale_x_continuous(limits = c(0, 466), breaks = seq(0, 2800, 50)) +
+  geom_text_repel(data = dat_selected_protein,
                   # direction = "x", nudge_x = -2, force = 20,
                   aes(label = .labs_sele_MAP1b),
                   color = col_exp,
                   size = 2, max.overlaps = Inf) +
   geom_linerange(aes(x = Phosphoposition, ymax = Plotting, ymin = 0),
-                 size = 0.2,
+                 linewidth = 0.2,
                  position = position_jitter(height = 0L, seed = 1L)) +
   theme_classic() +
   theme(
@@ -755,7 +837,7 @@ plot_phosphosites <- ggplot(df_MAP1b, aes(x = Phosphoposition, y = Plotting)) +
   )
 
 plot_phosphosites
-ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_phosphoprofile.png", sep = ""), width = 8, height = 1)
+# ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_phosphoprofile.png", sep = ""), width = 8, height = 1)
 ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_phosphoprofile.svg", sep = ""), width = 8, height = 1)
 
 # ---------------------------------------------------------------------------- #
@@ -812,7 +894,7 @@ data_norm <- na.omit(data_norm)
 plot_pheatmap_standard <- pheatmap(data_norm)
 plot_pheatmap_standard
 
-ggsave(plot_pheatmap_standard, filename = paste(output_dir, "/", norm_opt, "_pheatmap_standard.png", sep = ""), width = 7, height = 6)
+# ggsave(plot_pheatmap_standard, filename = paste(output_dir, "/", norm_opt, "_pheatmap_standard.png", sep = ""), width = 7, height = 6)
 ggsave(plot_pheatmap_standard, filename = paste(output_dir, "/", norm_opt, "_pheatmap_standard.svg", sep = ""), width = 7, height = 6)
 
 # ---------------------------------------------------------------------------- #
