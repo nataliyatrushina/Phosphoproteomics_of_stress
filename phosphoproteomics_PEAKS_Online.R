@@ -459,8 +459,12 @@ p <- ggplot(dplyr::filter(dat_for_plot_cut, !Gene %in% genes_selected), aes(x = 
     axis.text.x = element_text(color = "black"),
     axis.text.y = element_text(color = "black"),
     panel.grid.minor = element_blank(),
+<<<<<<< HEAD
     legend.position = "top",
     legend.title = element_blank()
+=======
+    legend.position = "top"
+>>>>>>> 4c6cc3fa1f6a78933bae9eaee773aa217a8ccb70
   ) +
   # ggrepel::geom_text_repel(
   #   data = dplyr::filter(dat_for_plot_cut_selected, Change != "unchanged"),
