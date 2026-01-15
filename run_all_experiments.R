@@ -33,7 +33,6 @@ for (exp_name in experiment_names) {
 }
 
 plots_all <- patchwork::wrap_plots(plots)
-# ggsave(plots_all, filename = paste("plots_volcano.svg", sep = ""), width = 10, height = 8)
 ggsave(plots_all, filename = paste("plots_volcano.png", sep = ""), width = 10, height = 8)
 
 # ---------------------------------------------------------------------------- #
@@ -54,7 +53,6 @@ for (exp_name in experiment_names) {
 }
 
 plots_all <- patchwork::wrap_plots(plots)
-# ggsave(plots_all, filename = paste("plots_volcano.svg", sep = ""), width = 10, height = 8)
 ggsave(plots_all, filename = paste("plots_volcano_cut.png", sep = ""), width = 10, height = 8)
 
 # ---------------------------------------------------------------------------- #
@@ -77,3 +75,43 @@ for (exp_name in experiment_names) {
 plots_all <- patchwork::wrap_plots(plots)
 # ggsave(plots_all, filename = paste("plots_volcano.svg", sep = ""), width = 10, height = 8)
 ggsave(plots_all, filename = paste("plots_volcano_cut_selected.png", sep = ""), width = 10, height = 8)
+
+# ---------------------------------------------------------------------------- #
+
+plots <- list()
+
+for (exp_name in experiment_names) {
+  output_dir <- paste(
+    paste0(exp_name, "_phosph"),
+    "/output_",
+    formatC(pValue_cutoff, digits = 2, format = "f"),
+    "sign_",
+    FC_cutoff,
+    "fold",
+    sep = ""
+  )
+  plots[[exp_name]] <- readRDS(file.path(output_dir, paste0(norm_opt, "_phosphoprofile.rds")))
+}
+
+plots_all <- patchwork::wrap_plots(plots, ncol = 1)
+ggsave(plots_all, filename = paste("plots_selected_phosphoprofile.png", sep = ""), width = 8, height = 8)
+
+# ---------------------------------------------------------------------------- #
+
+plots <- list()
+
+for (exp_name in experiment_names) {
+  output_dir <- paste(
+    paste0(exp_name, "_phosph"),
+    "/output_",
+    formatC(pValue_cutoff, digits = 2, format = "f"),
+    "sign_",
+    FC_cutoff,
+    "fold",
+    sep = ""
+  )
+  plots[[exp_name]] <- readRDS(file.path(output_dir, paste0(norm_opt, "_volcano_plot_cut_G3bp1.rds")))
+}
+
+plots_all <- patchwork::wrap_plots(plots)
+ggsave(plots_all, filename = paste("plots_volcano_cut_G3bp1.png", sep = ""), width = 10, height = 8)

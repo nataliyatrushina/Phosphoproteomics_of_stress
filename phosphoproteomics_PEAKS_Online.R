@@ -1,6 +1,6 @@
 # title: "Phosphoproteomics script for PEAKS® Online output analysis"
 # author: "Nataliya Trushina"
-# date: "2025-03-22"
+# date: "2026-01-15"
 
 # ---------------------------------------------------------------------------- #
 # --- Script description ----------------------------------------------------- #
@@ -76,7 +76,7 @@ if (!exists("RUN_ALL")) RUN_ALL <- FALSE
 if (RUN_ALL) {
   experiment_choice = exp_name
   } else {
-  experiment_choice <- "Arsenite"  # Change this to select experiment
+  experiment_choice <- "HS"  # Change this to select experiment
 }
 
 config <- yaml.load_file("experiment_config.yaml")
@@ -492,6 +492,65 @@ saveRDS(p, file = paste(output_dir, "/", norm_opt, "_volcano_plot_cut_selected.r
 
 # ---------------------------------------------------------------------------- #
 
+genes_selected <- "G3bp1"
+# dat_for_plot_cut_selected <- dplyr::filter(dat_for_plot_cut, Gene %in% genes_selected)
+dat_for_plot_cut_selected <- dat_for_plot_cut %>%
+  dplyr::filter(Gene %in% genes_selected) %>%
+  dplyr::group_by(logFC, Significance_new) %>%
+  dplyr::slice(1) %>%
+  dplyr::ungroup()
+
+# Use dat_final for the total plot without any cut values transfromed to Inf
+p <- ggplot(dplyr::filter(dat_for_plot_cut, !Gene %in% genes_selected), aes(x = logFC, y = Significance_new, colour = Change,
+                                                                            text = paste("Gene:", Gene, "\n", "Description:", Description))) +
+  geom_point(size = 0.7, alpha = 0.4) +
+  scale_colour_manual(values = colors, breaks = c("downregulated", "unchanged", "upregulated")) +
+  geom_hline(yintercept = Sign_cutoff, colour = "gray", linetype = "dashed") +
+  geom_vline(xintercept = log2(FC_cutoff), colour = "gray", linetype = "dashed") +
+  geom_vline(xintercept = -log2(FC_cutoff), colour = "gray", linetype = "dashed") +
+  scale_x_continuous(name = "Fold Change [log2]", breaks = seq(-10, 10, 1),
+                     limits = if (is.finite(cutoff_present_FC)) c(-cutoff_present_FC, cutoff_present_FC) else NULL) +
+  scale_y_continuous(name = "P Value [-10lg]", breaks = seq(0, 1000, 10)) +
+  ggtitle(experiment_choice) +
+  theme_bw(base_size = 10) +
+  theme(
+    plot.title = element_text(color = "black", size = 10),
+    axis.text.x = element_text(color = "black"),
+    axis.text.y = element_text(color = "black"),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.title = element_blank()
+  ) +
+  # ggrepel::geom_text_repel(
+  #   data = dplyr::filter(dat_for_plot_cut_selected, Change != "unchanged"),
+  #   # direction = "y",
+  #   color = "red",
+  #   aes(label = Gene),
+  #   size = 2,
+  #   max.overlaps = Inf
+  # ) +
+  geom_point(
+    data = dat_for_plot_cut_selected,
+    aes(shape = "G3bp1"),
+    fill = "red",
+    color = "white",
+    size = 1.5,
+    alpha = 0.5
+  ) +
+  scale_shape_manual(
+    name = "",
+    values = c("G3bp1" = 21),
+    breaks = "G3bp1",
+    guide = guide_legend(nrow = 1)
+  )
+
+p
+# ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot.png", sep = ""), width = 6, height = 4)
+ggsave(p, filename = paste(output_dir, "/", norm_opt, "_volcano_plot_cut_G3bp1.svg", sep = ""), width = 6, height = 4)
+saveRDS(p, file = paste(output_dir, "/", norm_opt, "_volcano_plot_cut_G3bp1.rds", sep = ""))
+
+# ---------------------------------------------------------------------------- #
+
 
 # MT-associated genes
 color_MT_struct <- "#FFBD00"
@@ -809,37 +868,44 @@ dat_selected_protein <- dat_for_plot_cut[dat_for_plot_cut$Gene == "G3bp1",]
 dat_selected_protein$Phosphoposition <- gsub('\\D+','', dat_selected_protein$Phosphosite)
 dat_selected_protein$Phosphoposition <- as.numeric(dat_selected_protein$Phosphoposition)
 dat_selected_protein$Plotting <- 1
-.labs_sele_MAP1b <- dat_selected_protein$Phosphosite
+# .labs_sele <- dat_selected_protein$Phosphosite
+# .labs_sele[duplicated(.labs_sele)] <- NA
+dat_selected_protein <- dat_selected_protein %>%
+  dplyr::mutate(.labs_sele = dplyr::if_else(duplicated(Phosphosite), NA_character_, Phosphosite))
 
-plot_phosphosites <- ggplot(dat_selected_protein, aes(x = Phosphoposition, y = Plotting)) +
+plot_phosphosites <- ggplot(dat_selected_protein, aes(x = Phosphoposition, y = logFC)) +
   geom_point(stat = "identity", color = col_exp, size = 1) +
   geom_hline(yintercept = 0, color = "black") +
   ggtitle("Phosphoprofile of MAP1B") +
   xlab("Residue number") +
   scale_x_continuous(limits = c(0, 466), breaks = seq(0, 2800, 50)) +
+  scale_y_continuous(limits = c(-ceiling(max(abs(dat_selected_protein$logFC), na.rm = TRUE)), ceiling(max(abs(dat_selected_protein$logFC), na.rm = TRUE)))) +
   geom_text_repel(data = dat_selected_protein,
                   # direction = "x", nudge_x = -2, force = 20,
-                  aes(label = .labs_sele_MAP1b),
+                  aes(label = .labs_sele),
                   color = col_exp,
-                  size = 2, max.overlaps = Inf) +
-  geom_linerange(aes(x = Phosphoposition, ymax = Plotting, ymin = 0),
-                 linewidth = 0.2,
-                 position = position_jitter(height = 0L, seed = 1L)) +
+                  size = 3.5, max.overlaps = Inf) +
+  geom_linerange(aes(x = Phosphoposition, ymax = logFC, ymin = 0)
+                 , linewidth = 0.2
+                 # , position = position_jitter(height = 0L, seed = 1L)
+                 ) +
   theme_classic() +
   theme(
-    plot.title = element_blank(),  # element_text(color = "black", size = 12, hjust = 0.5),
-    axis.ticks = element_blank(),  # element_line(colour = "black"),
-    axis.text.x = element_text(color = "black", size = 8),
-    axis.text.y = element_blank(),  # element_text(color = "black", size = 8),
-    legend.position = "none",
+    plot.title = element_blank(),
+    # axis.ticks = element_blank(),
+    axis.text = element_text(color = "black", size = 11),
+    # axis.text.y = element_blank(),
+    # legend.position = "none",
     legend.title = element_blank(),
     axis.title.x = element_blank(),
-    axis.title.y = element_blank()
+    # axis.title.y = element_blank()
   )
 
 plot_phosphosites
-# ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_phosphoprofile.png", sep = ""), width = 8, height = 1)
-ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_MAP1B_phosphoprofile.svg", sep = ""), width = 8, height = 1)
+# ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_phosphoprofile.png", sep = ""), width = 8, height = 1)
+ggsave(plot_phosphosites, filename = paste(output_dir, "/", norm_opt, "_phosphoprofile.svg", sep = ""), width = 8, height = 2)
+
+saveRDS(plot_phosphosites, file = paste(output_dir, "/", norm_opt, "_phosphoprofile.rds", sep = ""))
 
 # ---------------------------------------------------------------------------- #
 # ---------------------------------------------------------------------------- #
@@ -884,7 +950,7 @@ dat_for_heatmap <- dat_selected_protein[c("peptide_phosphosite", "control_1", "c
 rownames(dat_for_heatmap) <- dat_for_heatmap$peptide_phosphosite
 dat_for_heatmap <- dat_for_heatmap[c("control_1", "control_2", "control_3", "exp_1", "exp_2", "exp_3")]
 data_matrix <- as.matrix(dat_for_heatmap)
-pheatmap(data_matrix, cluster_cols = FALSE)
+pheatmap(data_matrix, cluster_cols = FALSE)  # do not reorder columns
 
 # z-score
 cal_z_score <- function(x){
@@ -892,7 +958,7 @@ cal_z_score <- function(x){
 }
 data_norm <- t(apply(data_matrix, 1, cal_z_score))
 data_norm <- na.omit(data_norm)
-plot_pheatmap_standard <- pheatmap(data_norm)
+plot_pheatmap_standard <- pheatmap(data_norm, cluster_cols = FALSE)  # do not reorder columns
 plot_pheatmap_standard
 
 # ggsave(plot_pheatmap_standard, filename = paste(output_dir, "/", norm_opt, "_pheatmap_standard.png", sep = ""), width = 7, height = 6)
